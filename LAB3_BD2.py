@@ -14,6 +14,10 @@ def main():
                 name = f"Thor{i}"
                 org_id = session.execute_write(employ_person_tx, name)
                 print(f"User {name} added to organization {org_id}")
+            
+
+            # movie = session.execute_read(find_movie_tx, "The Matrix")
+            # print(movie)
 
 
 def employ_person_tx(tx, name):
@@ -60,6 +64,38 @@ def employ_person_tx(tx, name):
     # Return the Organization ID to which the new Person ends up in
     return result.single()["id"]
 
+def create_movie_tx(tx, movie_data):
+    query = """
+    CREATE (m:Movie {
+        title: $title,
+        tmdbId: $tmdbId,
+        released: datetime($released),
+        imdbRating: $imdbRating,
+        movieId: $movieId,
+        year: $year,
+        imdbId: $imdbId,
+        runtime: $runtime,
+        countries: $countries,
+        imdbVotes: $imdbVotes,
+        url: $url,
+        revenue: $revenue,
+        plot: $plot,
+        poster: $poster,
+        budget: $budget,
+        languages: $languages
+    })
+    RETURN m
+    """
+    tx.run(query, **movie_data)
+
+
+def find_movie_tx(tx, title):
+    query = """
+    MATCH (m:Movie {title: $title})
+    RETURN m
+    """
+    result = tx.run(query, title=title)
+    return result.single()
 
 if __name__ == "__main__":
     main()
