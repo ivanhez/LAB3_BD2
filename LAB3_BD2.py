@@ -12,6 +12,8 @@ AUTH = ("neo4j", "vg4OqlW3WQ5fs5_lDt2xKgHTz_09qix4HLGqzOrwEpg")
 # Funciones para Personas
 # ------------------------------------------------------------------------------
 NUM_PEOPLE = 20
+NUM_MOVIES = 5
+
 def random_date(start_year=1950, end_year=2000):
     start_date = date(start_year, 1, 1)
     end_date   = date(end_year, 12, 31)
@@ -25,6 +27,12 @@ def random_label_set():
         return ["Actor", "Director"]
     else:
         return [choice]
+
+def random_runtime():
+    return random.randint(80, 180)
+
+def random_rating():
+    return round(random.uniform(1.0, 10.0), 1)
 
 
 def create_movie_tx(tx, movie_data):
@@ -187,6 +195,33 @@ def main():
 
     with driver.session(database="neo4j") as session:
 
+ # ------------------------------------------------------------------------------
+# Loop para crear nodos Movie
+# ------------------------------------------------------------------------------
+        for i in range(NUM_MOVIES):
+            movie_data = {
+                "title": f"Movie_{i}",
+                "tmdbId": 2000 + i,
+                "released": random_date(1980, 2023).isoformat(),
+                "imdbRating": random_rating(),
+                "movieId": 6000 + i,
+                "year": random.randint(1980, 2023),
+                "imdbId": 70000 + i,
+                "runtime": random_runtime(),
+                "countries": ["USA", "UK"],
+                "imdbVotes": random.randint(1000, 100000),
+                "url": f"https://www.example.com/movie_{i}",
+                "revenue": round(random.uniform(1.0, 1000.0), 2),
+                "plot": f"Plot for Movie_{i}",
+                "poster": f"https://www.example.com/movie_poster_{i}.jpg",
+                "budget": round(random.uniform(1.0, 500.0), 2),
+                "languages": ["English", "French"]
+            }
+            session.execute_write(create_movie_tx, movie_data)
+            print(
+                f"Nodo movie creado con name: {movie_data['title']}, "
+                f"tmdbId: {movie_data['tmdbId']}"
+            )
 
 
 # ------------------------------------------------------------------------------
