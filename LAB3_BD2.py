@@ -93,6 +93,92 @@ def create_person_tx(tx, name, tmdbId, born, died, bornIn, url, imdbId, bio, pos
     )
     return result.single()[0]
 
+
+def create_user(tx, name):
+    query = """
+    CREATE (u:User {name: $name, userId: randomUUID()})
+    RETURN u
+    """
+    result = tx.run(query, name=name)
+    return result.single()[0]
+
+def create_genre(tx, genre):
+    query = """
+    CREATE (g:Genre {name: $genre})
+    RETURN g
+    """
+    result = tx.run(query, genre=genre)
+    return result.single()[0]
+
+def get_movie_ids(tx):
+    query = "MATCH (m:Movie) RETURN m.movieId"
+    result = tx.run(query)
+    return [record["m.movieId"] for record in result]
+
+
+def create_user_ratings(tx, name, movie_ids):
+    for movie_id in movie_ids:
+        if random.random() < 0.5:
+            rating = random.randint(1, 5)
+            query = """
+            MATCH (u:User {name: $name}), (m:Movie {movieId: $movie_id})
+            MERGE (u)-[r:RATED {rating: $rating}]->(m)
+            RETURN u, m, r
+            """
+            tx.run(query, name=name, movie_id=movie_id, rating=rating)
+
+
+def create_movies_with_genres(tx, movie_ids, GENRES):
+    for movie_id in movie_ids:
+        num_genres = random.randint(1, 3)
+        genres = random.sample(GENRES, num_genres)
+
+        query = """
+        MATCH (m:Movie {movieId: $movie_id})
+        WITH m
+        UNWIND $genres AS genre
+        MATCH (g:Genre {name: genre})
+        MERGE (m)-[:IN_GENRE]->(g)
+        RETURN m, g
+        """
+        tx.run(query, movie_id=movie_id, genres=genres) 
+
+
+
+def create_relationships(tx):
+    query = """
+    MATCH (p:Person)
+    WHERE "Actor" IN labels(p) OR "Director" IN labels(p)
+    RETURN p.name AS name, labels(p) AS labels, p.tmdbId AS tmdbId
+    """
+    people = tx.run(query).data()
+
+    for person in people:
+        name = person["name"]
+        tmdbId = person["tmdbId"]
+        labels = person["labels"]
+
+        movie_query = "MATCH (m:Movie) RETURN m.movieId AS movieId ORDER BY rand() LIMIT 1"
+        movie_result = tx.run(movie_query).single()
+
+        if movie_result:
+            movie_id = movie_result["movieId"]
+
+            if "Actor" in labels:
+                tx.run("""
+                MATCH (p:Person {tmdbId: $tmdbId}), (m:Movie {movieId: $movieId})
+                MERGE (p)-[:ACTED_IN]->(m)
+                """, tmdbId=tmdbId, movieId=movie_id)
+
+            if "Director" in labels:
+                tx.run("""
+                MATCH (p:Person {tmdbId: $tmdbId}), (m:Movie {movieId: $movieId})
+                MERGE (p)-[:DIRECTED]->(m)
+                """, tmdbId=tmdbId, movieId=movie_id)
+
+
+
+
 # ------------------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------------------
@@ -138,7 +224,25 @@ def main():
                 f"tmdbId: {node['tmdbId']}"
             )
 
+# ------------------------------------------------------------------------------
+        moviesID = session.execute_read(get_movie_ids)
 
+        for i in range(5):
+            user = "User_" + str(i)
+            node = session.execute_write(create_user, user)
+            session.execute_write(create_user_ratings, user, moviesID)
+
+        GENRES = [
+            "Action", "Adventure", "Sci-Fi", "Drama", "Thriller",
+            "Crime", "Fantasy", "Mystery", "Romance", "Animation"
+        ]
+
+        for g in GENRES:
+            session.execute_write(create_genre, g)
+
+        session.execute_write(create_movies_with_genres, moviesID, GENRES)
+
+        session.execute_write(create_relationships)
 
 
     driver.close()
