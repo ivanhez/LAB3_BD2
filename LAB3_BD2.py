@@ -66,7 +66,38 @@ def find_movie_tx(tx, title):
     RETURN m
     """
     result = tx.run(query, title=title)
-    return result.single()
+    return result.single()[0]
+
+def find_user_tx(tx, name):
+    query = """
+    MATCH (u:User {name: $name})
+    RETURN u
+    """
+    result = tx.run(query, name=name)
+    return result.single()[0]
+
+def find_user_tx(tx, name):
+    query = """
+    MATCH (u:User {name: $name})
+    RETURN u
+    """
+    result = tx.run(query, name=name)
+    return result.single()[0]
+
+def find_user_movie_rating(tx, name):
+    query = """
+    MATCH (u:User {name: $name})-[r:RATED]->(m:Movie)
+    RETURN u, r, m
+    """
+    result = tx.run(query, name=name)
+    return result.data()
+
+def DELETE_DATABASE(tx):
+    query = """
+    MATCH (n)
+    DETACH DELETE n
+    """
+    tx.run(query)
 # ------------------------------------------------------------------------------
 # Función de crear nodo Person
 # ------------------------------------------------------------------------------
@@ -195,6 +226,8 @@ def main():
 
     with driver.session(database="neo4j") as session:
 
+        session.execute_write(DELETE_DATABASE)
+
  # ------------------------------------------------------------------------------
 # Loop para crear nodos Movie
 # ------------------------------------------------------------------------------
@@ -262,10 +295,16 @@ def main():
 # ------------------------------------------------------------------------------
         moviesID = session.execute_read(get_movie_ids)
 
+
+        # ------ CREATE USERS ------
+        # ------ CREATE AND CREATE USER RATING RELATION -----
         for i in range(5):
             user = "User_" + str(i)
             node = session.execute_write(create_user, user)
             session.execute_write(create_user_ratings, user, moviesID)
+
+
+        # ------ CREATE GENRES ------ 
 
         GENRES = [
             "Action", "Adventure", "Sci-Fi", "Drama", "Thriller",
@@ -275,9 +314,26 @@ def main():
         for g in GENRES:
             session.execute_write(create_genre, g)
 
+        # ------ CREATE RELATION MOVIES WITH GENRES ------
         session.execute_write(create_movies_with_genres, moviesID, GENRES)
 
+        # ------ CREATE RELATIONSHIPS PERSON -> MOVIES ------
         session.execute_write(create_relationships)
+
+        print("# ------------------------------------------------------------------------------")
+        print("BUSQUEDA PELICULA")
+        result = session.execute_read(find_movie_tx, "Movie_1")
+        print(result)
+        print("# ------------------------------------------------------------------------------")
+        print("BUSQUEDA USUARIO")
+        result = session.execute_read(find_user_tx, "User_1")
+        print(result)
+        print("# ------------------------------------------------------------------------------")
+        print("BUSQUEDA USUARIO RELACION MOVIE")
+        result = session.execute_write(find_user_movie_rating, "User_1")
+        print(result)
+
+
 
 
     driver.close()
