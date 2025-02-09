@@ -26,11 +26,6 @@ def random_label_set():
     else:
         return [choice]
 
-# ------------------------------------------------------------------------------
-# Función de crear nodo Person
-# ------------------------------------------------------------------------------
-def create_person_tx(tx, name, tmdbId, born, died, bornIn, url, imdbId, bio, poster, labels):
-    labels_str = ":Person" + "".join(f":{label}" for label in labels)
 
 def create_movie_tx(tx, movie_data):
     query = """
@@ -64,6 +59,89 @@ def find_movie_tx(tx, title):
     """
     result = tx.run(query, title=title)
     return result.single()
+# ------------------------------------------------------------------------------
+# Función de crear nodo Person
+# ------------------------------------------------------------------------------
+def create_person_tx(tx, name, tmdbId, born, died, bornIn, url, imdbId, bio, poster, labels):
+    labels_str = ":Person" + "".join(f":{label}" for label in labels)
+
+    query = f"""
+    MERGE (p{labels_str} {{ tmdbId: $tmdbId }})
+    ON CREATE SET
+        p.name   = $name,
+        p.born   = date($born),
+        p.died   = CASE WHEN $died IS NULL THEN NULL ELSE date($died) END,
+        p.bornIn = $bornIn,
+        p.url    = $url,
+        p.imdbId = $imdbId,
+        p.bio    = $bio,
+        p.poster = $poster
+    RETURN p
+    """
+
+    result = tx.run(
+        query,
+        name=name,
+        tmdbId=tmdbId,
+        born=born.isoformat() if born else None,
+        died=died.isoformat() if died else None,
+        bornIn=bornIn,
+        url=url,
+        imdbId=imdbId,
+        bio=bio,
+        poster=poster
+    )
+    return result.single()[0]
+
+# ------------------------------------------------------------------------------
+# Main
+# ------------------------------------------------------------------------------
+def main():
+    driver = GraphDatabase.driver(URI, auth=AUTH)
+
+    with driver.session(database="neo4j") as session:
+
+
+
+# ------------------------------------------------------------------------------
+# Loop para crear nodos Person
+# ------------------------------------------------------------------------------
+        for i in range(NUM_PEOPLE):
+            name    = f"Person_{i}"
+            tmdbId  = 1000 + i
+            born    = random_date()
+            died    = random_date(born.year + 1, 2020) if random.random() < 0.3 else None
+            bornIn  = "Some City"
+            url     = f"https://www.example.com/person_{i}"
+            imdbId  = 50000 + i
+            bio     = f"Bio for {name}"
+            poster  = f"https://www.example.com/poster_{i}.jpg"
+            labels  = random_label_set()
+
+            # Escribir en base de datos
+            node = session.execute_write(
+                create_person_tx,
+                name,
+                tmdbId,
+                born,
+                died,
+                bornIn,
+                url,
+                imdbId,
+                bio,
+                poster,
+                labels
+            )
+            print(
+                f"Nodo creado con labels: {labels}, "
+                f"name: {node['name']}, "
+                f"tmdbId: {node['tmdbId']}"
+            )
+
+
+
+
+    driver.close()
 
 if __name__ == "__main__":
     main()
