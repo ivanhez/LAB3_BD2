@@ -1,3 +1,8 @@
+# Grupo: Bededos
+# Gerardo Pineda 22880
+# Marlon Hernández 15177
+# Angel Martin Ortega Yung 18020
+
 import random
 from datetime import date, timedelta
 from neo4j import GraphDatabase
